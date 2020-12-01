@@ -57,9 +57,6 @@ void GetPlayerInfo(void) {
     ReadProcessMemory(hProcess, (DWORD*)(self.address+0x1C), &self.z, 4, NULL);
     ReadProcessMemory(hProcess, (DWORD*)(self.address+0xB4), &mouse.current_x, 4, NULL);
     ReadProcessMemory(hProcess, (DWORD*)(self.address+0xB0), &mouse.current_y, 4, NULL);
-    
-            
-            
 
     // §PÂ_¤è¦V
     if (mouse.current_x > 145 || mouse.current_x < -145) {
