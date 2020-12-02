@@ -57,7 +57,7 @@ void GetPlayerInfo(void) {
     ReadProcessMemory(hProcess, (DWORD*)(self.address+0x1C), &self.z, 4, NULL);
     ReadProcessMemory(hProcess, (DWORD*)(self.address+0xB4), &mouse.current_x, 4, NULL);
     ReadProcessMemory(hProcess, (DWORD*)(self.address+0xB0), &mouse.current_y, 4, NULL);
-
+    
     // 判斷方向
     if (mouse.current_x > 145 || mouse.current_x < -145) {
         self.y_axis = -1;
@@ -85,23 +85,22 @@ void GetPlayerInfo(void) {
 vector<DWORD> GetTargetList(uint8_t person) {
     vector<DWORD> list;
     DWORD addr;
-    DWORD base1 = 0x205565b0, base2 = 0x200C64f0;
-    uint8_t id;
-    uint8_t death;
-    uint8_t hide;
-    uint16_t appear1;
-    uint16_t appear2;
+    DWORD base1 = 0x205403b0, base2 = 0x200c49f0;
+    uint8_t max_size;
+    uint8_t id, death, hide;
+    uint16_t appear1, appear2;
     uint16_t act;
     
+    ReadProcessMemory(hProcess, (DWORD*)0x2009FB64, &max_size, 1, NULL);
+    //cout << (int)max_size << endl;
     // 找出有效人物地址
-    for (int i=0;i<100;i++) {
+    for (int i=0;i<max_size;i++) {
         ReadProcessMemory(hProcess, (DWORD*)base1, &addr, 4, NULL);
         ReadProcessMemory(hProcess, (DWORD*)(addr+0xA0), &id, 1, NULL);
-        if (id == 0) {
-            base1 = base1 - 0x588;
-            base2 = base2 - 0x6C;
-            continue;
-        }
+
+        /*cout << dec << (int)id << "\t";
+        cout << hex << base1 << "\t";
+        cout << hex << base2 << endl;*/
         if (person == EVERYONE) {
             list.push_back(base1);
         }
@@ -111,17 +110,13 @@ vector<DWORD> GetTargetList(uint8_t person) {
             ReadProcessMemory(hProcess, (DWORD*)(addr+0x0C), &appear1, 2, NULL);
             ReadProcessMemory(hProcess, (DWORD*)(addr+0x10), &appear2, 2, NULL);
             ReadProcessMemory(hProcess, (DWORD*)(addr+0x50), &act, 2, NULL);
-            /*
-            if (base1 == 0x205456a8)
-                printf("%d %d %d %d %d\n", death,act,hide,appear1,appear2);
-            */
-        if (death != 0 && death <= 40 && appear1 < 100 && appear2 < 100 && hide == 0 &&\
+            if (death != 0 && death <= 40 && appear1 < 100 && appear2 < 100 && hide == 0 &&
                 act > 0 && act <= 1022) {
-                list.push_back(base1);
+                    list.push_back(base1);
             }
         }
-        base1 = base1 - 0x588;
-        base2 = base2 - 0x6C;
+        base1 = base1 + 0x588;
+        base2 = base2 + 0x6C;
     }
 
     return list;
@@ -137,7 +132,7 @@ void AutomaticAiming(void) {
     float dx, dy, dz;
     float angle, angle360;
     float mouse_cx, mouse_cy;
-    float distance, z, tmp;
+    float distance, z, offset1, offset2;
     float error_x,error_y;
     float sd;
     
@@ -186,8 +181,12 @@ void AutomaticAiming(void) {
             else if (mouse_cx - angle360 > 180)
                 angle = (360 + angle360 - mouse_cx)*-1;
             // 求y軸偏移角度
-            tmp = self.z + 2;    // 自身高度 + 偏移植 (瞄地板=39+25)
-            z = tan( mouse_cy*M_PI/180 /* Deg2Rad */ ) * distance + tmp; // 求滑鼠Y軸對邊邊長 tan(deg) = 對邊/鄰邊
+            offset1 = self.z + 12;    // 自身高度 + 瞄準部位(腳:64, 頭:2)
+            // 蹲下高度
+            if (GetAsyncKeyState(VK_CONTROL)) offset2 = 24;
+            else                              offset2 = 0;
+            z = tan( mouse_cy*M_PI/180 /* Deg2Rad */ ) * distance; // 求滑鼠Y軸對邊邊長 tan(deg) = 對邊/鄰邊
+            z += offset1 - offset2; // 自身偏移值 - 蹲下高度
             dz = z - target.z;
             error_y = (atan(dz/distance) * 180 / M_PI)*-1;    // atan(對邊/鄰邊) * Deg2Rad
             error_x = angle;
@@ -427,8 +426,8 @@ int main()
     DWORD pid;
     
     DWORD addr;
-    uint16_t act;
     uint8_t vKey, key;
+    uint16_t act;
     uint16_t tmp;
     // 等待遊戲開啟
     while (1) {
@@ -529,7 +528,7 @@ int main()
                 self.JUMP_MODE = false;
         }
         T_10MS++;
-        Sleep(10);    // 防止循環太快 
+        Sleep(10);    // 防止程式異常 
     }
     
     return 0;
